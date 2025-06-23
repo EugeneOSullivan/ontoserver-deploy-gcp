@@ -39,7 +39,7 @@ Internet
 **VPC Name**: `ontoserver-vpc`
 **Subnet**: `ontoserver-subnet`
 **CIDR Range**: `10.0.0.0/24`
-**Region**: `us-central1`
+**Region**: `europe-west2`
 
 **Features**:
 - Private Google Access enabled
@@ -169,7 +169,7 @@ Value: [Custom Domain]
    
    gcloud compute networks subnets create ontoserver-subnet \
      --network=ontoserver-vpc \
-     --region=us-central1 \
+     --region=europe-west2 \
      --range=10.0.0.0/24 \
      --enable-private-ip-google-access
    ```
@@ -185,7 +185,7 @@ Value: [Custom Domain]
 3. **Enable VPC Flow Logs**
    ```bash
    gcloud compute networks subnets update ontoserver-subnet \
-     --region=us-central1 \
+     --region=europe-west2 \
      --enable-flow-logs
    ```
 
@@ -232,7 +232,7 @@ Value: [Custom Domain]
 gcloud compute networks describe ontoserver-vpc
 
 # Verify subnet configuration
-gcloud compute networks subnets describe ontoserver-subnet --region=us-central1
+gcloud compute networks subnets describe ontoserver-subnet --region=europe-west2
 
 # Test database connectivity
 gcloud sql connect ontoserver-db --user=ontoserver

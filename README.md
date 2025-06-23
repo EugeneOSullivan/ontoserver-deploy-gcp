@@ -40,7 +40,7 @@ export QUAY_PASSWORD="your-quay-password"
 ### 1. Set Environment Variables
 ```bash
 export PROJECT_ID="your-gcp-project-id"
-export REGION="us-central1"
+export REGION="europe-west2"
 export DATABASE_PASSWORD="your-secure-password"
 ```
 
@@ -108,7 +108,7 @@ gcp/
 
 ```bash
 export PROJECT_ID="your-gcp-project-id"
-export REGION="us-central1"
+export REGION="europe-west2"
 export DATABASE_PASSWORD="your-secure-password"
 
 # For Quay.io authentication
@@ -148,7 +148,7 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.PROJECT_ID }}
-  REGION: us-central1
+  REGION: europe-west2
 
 jobs:
   deploy:
@@ -193,7 +193,7 @@ trigger:
 
 variables:
   projectId: '$(PROJECT_ID)'
-  region: 'us-central1'
+  region: 'europe-west2'
 
 pool:
   vmImage: 'ubuntu-latest'

@@ -33,8 +33,8 @@ if [ -z "$PROJECT_ID" ]; then
 fi
 
 if [ -z "$REGION" ]; then
-    print_warning "REGION not set, using default: us-central1"
-    export REGION="us-central1"
+    print_warning "REGION not set, using default: europe-west2"
+    export REGION="europe-west2"
 fi
 
 print_status "Setting up IAM for project: $PROJECT_ID"
