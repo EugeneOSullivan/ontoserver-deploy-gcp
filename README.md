@@ -2,6 +2,8 @@
 
 This example creates a recommended environment in Google Cloud Platform that exposes Ontoserver running on Cloud Run with managed services for optimal performance and cost-effectiveness.
 
+**This deployment is based on the official [AEHRC Ontoserver Docker deployment patterns](https://github.com/aehrc/ontoserver-deploy/tree/master/docker) and provides a serverless alternative to the Azure Kubernetes deployment.**
+
 ## Architecture Overview
 
 The GCP deployment uses the following managed services:
@@ -14,6 +16,20 @@ The GCP deployment uses the following managed services:
 - **VPC** - Virtual private cloud with proper network segmentation
 - **Secret Manager** - For secure configuration management
 - **VPC Access Connector** - For Cloud Run to access private resources
+
+## Comparison with Azure Kubernetes
+
+This GCP Cloud Run deployment provides the same functionality as the official Azure Kubernetes deployment with significant advantages:
+
+| Aspect | Azure Kubernetes | GCP Cloud Run |
+|--------|------------------|---------------|
+| **Management** | Manual Kubernetes cluster | Fully managed serverless |
+| **Scaling** | Manual HPA configuration | Automatic scaling to zero |
+| **Cost** | Pay for nodes 24/7 | Pay only for requests |
+| **Complexity** | High (Kubernetes expertise) | Low (managed service) |
+| **Deployment** | `kubectl apply` | `terraform apply` |
+
+See [COMPARISON.md](COMPARISON.md) for detailed comparison.
 
 ## Prerequisites
 
@@ -46,7 +62,7 @@ export DATABASE_PASSWORD="your-secure-password"
 
 ### 2. Run Setup Scripts (Manual Admin Steps)
 ```bash
-cd gcp/scripts
+cd scripts
 
 # Enable APIs and basic setup
 ./setup-project.sh
@@ -86,13 +102,16 @@ cd ../scripts
 ## Directory Structure
 
 ```
-gcp/
+ontoserver-gcp-deployment/
 ├── README.md                           # This file
+├── COMPARISON.md                       # Azure Kubernetes vs GCP Cloud Run comparison
+├── Dockerfile                          # Ontoserver container configuration
 ├── scripts/                            # IAM and deployment scripts
 │   ├── setup-project.sh               # Project setup and API enablement
 │   ├── setup-iam.sh                   # Service account and IAM setup
 │   ├── setup-artifact-registry.sh     # Container registry setup
-│   └── deploy-ontoserver.sh           # Cloud Run deployment script
+│   ├── deploy-ontoserver.sh           # Cloud Run deployment script
+│   └── troubleshoot-db-connection.sh  # Database connection troubleshooting
 ├── terraform/                          # Infrastructure as Code
 │   ├── main.tf                        # Main Terraform configuration
 │   ├── variables.tf                   # Variable definitions
@@ -116,117 +135,51 @@ export QUAY_USERNAME="your-quay-username"
 export QUAY_PASSWORD="your-quay-password"
 
 # For Terraform
-export GOOGLE_APPLICATION_CREDENTIALS="path/to/terraform-sa-key.json"
+export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account-key.json"
 ```
 
-### Terraform Backend Initialization
+### Database Configuration
 
-The Terraform state is stored in a GCS bucket. Initialize with:
+The deployment uses the same database configuration as the Azure Kubernetes deployment:
 
 ```bash
-terraform init -backend-config="bucket=${PROJECT_ID}-terraform-state"
+# Database settings (configured in terraform.tfvars)
+database_name     = "ontoserver"
+database_user     = "ontoserver"
+database_password = "your-secure-password"
+database_version  = "POSTGRES_14"
+database_tier     = "db-f1-micro"  # Use db-custom-2-4096 for production
 ```
 
-## Security Considerations
+### Application Configuration
 
-1. **Private Database**: Cloud SQL uses private IP only
-2. **VPC Isolation**: All resources in private VPC
-3. **Service Accounts**: Minimal required permissions
-4. **Secret Management**: Database credentials in Secret Manager
-5. **Image Security**: Images stored in private Artifact Registry
+Environment variables match the Azure Kubernetes deployment:
 
-## CI/CD Integration
-
-### GitHub Actions Example
-
-```yaml
-name: Deploy Ontoserver to GCP
-
-on:
-  push:
-    branches: [ main ]
-
-env:
-  PROJECT_ID: ${{ secrets.PROJECT_ID }}
-  REGION: europe-west2
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Setup Google Cloud CLI
-      uses: google-github-actions/setup-gcloud@v1
-      with:
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        project_id: ${{ secrets.PROJECT_ID }}
-    
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v2
-    
-    - name: Terraform Init
-      run: |
-        cd gcp/terraform
-        terraform init -backend-config="bucket=${{ env.PROJECT_ID }}-terraform-state"
-    
-    - name: Terraform Apply
-      run: |
-        cd gcp/terraform
-        terraform apply -auto-approve
-      env:
-        TF_VAR_project_id: ${{ env.PROJECT_ID }}
-        TF_VAR_database_password: ${{ secrets.DATABASE_PASSWORD }}
-        TF_VAR_service_account_email: "ontoserver-run-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
-    
-    - name: Deploy to Cloud Run
-      run: |
-        cd gcp/scripts
-        ./deploy-ontoserver.sh
-```
-
-### Azure DevOps Example
-
-```yaml
-trigger:
-- main
-
-variables:
-  projectId: '$(PROJECT_ID)'
-  region: 'europe-west2'
-
-pool:
-  vmImage: 'ubuntu-latest'
-
-steps:
-- task: TerraformInstaller@0
-  inputs:
-    terraformVersion: '1.0.0'
-
-- script: |
-    echo $(GCP_SA_KEY) | base64 -d > gcp-key.json
-    export GOOGLE_APPLICATION_CREDENTIALS=gcp-key.json
-    gcloud auth activate-service-account --key-file=gcp-key.json
-    gcloud config set project $(projectId)
-  displayName: 'Authenticate to GCP'
-
-- script: |
-    cd gcp/terraform
-    terraform init -backend-config="bucket=$(projectId)-terraform-state"
-    terraform apply -auto-approve
-  displayName: 'Deploy Infrastructure'
-  env:
-    TF_VAR_project_id: $(projectId)
-    TF_VAR_database_password: $(DATABASE_PASSWORD)
-    TF_VAR_service_account_email: "ontoserver-run-sa@$(projectId).iam.gserviceaccount.com"
-
-- script: |
-    cd gcp/scripts
-    ./deploy-ontoserver.sh
-  displayName: 'Deploy Ontoserver'
+```bash
+# Application settings (configured in Terraform)
+SPRING_PROFILES_ACTIVE=cloud
+JAVA_OPTS=-Xmx2g -Xms1g
+DB_PORT=5432
 ```
 
 ## Troubleshooting
+
+### Database Connection Issues
+
+If you're experiencing database connection problems, run the troubleshooting script:
+
+```bash
+./scripts/troubleshoot-db-connection.sh
+```
+
+This script will:
+- Check Terraform infrastructure status
+- Verify Cloud Run service configuration
+- Validate Cloud SQL instance status
+- Check VPC connector configuration
+- Verify service account permissions
+- Test service connectivity
+- Provide actionable recommendations
 
 ### Common Issues
 
@@ -244,6 +197,7 @@ steps:
    - Check Cloud Run logs for application errors
 
 4. **Database Connection Failed**
+   - Run the troubleshooting script: `./scripts/troubleshoot-db-connection.sh`
    - Verify VPC connector is properly configured
    - Check if private service connection is established
    - Validate database credentials in Secret Manager
@@ -265,6 +219,9 @@ gcloud artifacts docker images list $REGION-docker.pkg.dev/$PROJECT_ID/ontoserve
 
 # Test the service
 curl $(gcloud run services describe ontoserver --region=$REGION --format="value(status.url)")/fhir/metadata
+
+# Troubleshoot database connections
+./scripts/troubleshoot-db-connection.sh
 ```
 
 ## Cost Optimization
@@ -282,12 +239,35 @@ curl $(gcloud run services describe ontoserver --region=$REGION --format="value(
 4. **SSL**: Enable load balancer with custom domain for production
 5. **Scaling**: Configure appropriate min/max instances for Cloud Run
 
+## Migration from Azure Kubernetes
+
+If you're migrating from the Azure Kubernetes deployment:
+
+1. **Export current configuration**:
+   ```bash
+   kubectl get deployment ontoserver -o yaml > current-deployment.yaml
+   ```
+
+2. **Extract environment variables**:
+   ```bash
+   kubectl get deployment ontoserver -o jsonpath='{.spec.template.spec.containers[0].env}' > env-vars.json
+   ```
+
+3. **Update Terraform variables** with values from your Azure deployment
+
+4. **Deploy to GCP**:
+   ```bash
+   terraform apply
+   ```
+
+See [COMPARISON.md](COMPARISON.md) for detailed migration guidance.
+
 ## Support
 
 For issues related to:
 - **GCP Infrastructure**: Check Terraform documentation and GCP console
 - **Cloud Run**: Review Cloud Run documentation and logs
-- **Ontoserver**: Refer to Ontoserver documentation
+- **Ontoserver**: Refer to [AEHRC Ontoserver documentation](https://github.com/aehrc/ontoserver-deploy)
 - **Quay.io Access**: Contact your organization's Quay.io administrator
 
 ## License

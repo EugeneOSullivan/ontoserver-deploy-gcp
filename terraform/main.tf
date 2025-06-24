@@ -236,6 +236,7 @@ resource "google_cloud_run_service" "ontoserver" {
     metadata {
       annotations = {
         "run.googleapis.com/vpc-access-connector" = google_vpc_access_connector.connector.name
+        "run.googleapis.com/vpc-access-egress"    = "all-traffic"
         "run.googleapis.com/client-name"          = "terraform"
       }
     }

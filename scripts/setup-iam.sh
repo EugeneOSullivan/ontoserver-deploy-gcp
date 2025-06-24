@@ -78,6 +78,7 @@ cloudrun_sa="serviceAccount:ontoserver-run-sa@$PROJECT_ID.iam.gserviceaccount.co
 CONDITION="expression=request.time < timestamp('2040-01-01T00:00:00Z'),title=temporary-access"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/cloudsql.client" --condition="$CONDITION"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/cloudsql.admin" --condition="$CONDITION"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/secretmanager.secretAccessor" --condition="$CONDITION"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/logging.logWriter" --condition="$CONDITION"
 gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/monitoring.metricWriter" --condition="$CONDITION"

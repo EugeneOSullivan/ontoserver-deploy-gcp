@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Ontoserver Cloud Run Deployment Script
-# This script deploys Ontoserver to Cloud Run using the image from Artifact Registry
+# This script updates the Ontoserver container image in Cloud Run
+# NOTE: Infrastructure is managed by Terraform, this script only updates the image
 
 set -e
 
@@ -41,7 +42,7 @@ if [ -z "$SERVICE_NAME" ]; then
     export SERVICE_NAME="ontoserver"
 fi
 
-print_status "Deploying Ontoserver to Cloud Run"
+print_status "Updating Ontoserver container image in Cloud Run"
 print_status "Project: $PROJECT_ID"
 print_status "Region: $REGION"
 print_status "Service: $SERVICE_NAME"
@@ -73,37 +74,23 @@ print_status "Database Host: $DB_HOST"
 print_status "Service Account Email: $SERVICE_ACCOUNT_EMAIL"
 print_status "VPC Connector: $VPC_CONNECTOR"
 
-# Check if the Cloud Run service already exists and get current image
-if gcloud run services describe $SERVICE_NAME --region=$REGION >/dev/null 2>&1; then
-    print_status "Cloud Run service already exists, updating..."
-else
-    print_status "Creating new Cloud Run service..."
+# Check if the Cloud Run service exists
+if ! gcloud run services describe $SERVICE_NAME --region=$REGION >/dev/null 2>&1; then
+    print_error "Cloud Run service '$SERVICE_NAME' not found!"
+    print_error "Please run 'terraform apply' in the terraform directory first to create the infrastructure."
+    exit 1
 fi
 
-# Deploy to Cloud Run using the image from Artifact Registry
-print_status "Deploying to Cloud Run..."
-gcloud run deploy $SERVICE_NAME \
+# Update only the container image in the existing Cloud Run service
+print_status "Updating container image in Cloud Run service..."
+gcloud run services update $SERVICE_NAME \
   --image $REGION-docker.pkg.dev/$PROJECT_ID/ontoserver-repo/ontoserver:latest \
-  --platform managed \
-  --region $REGION \
-  --allow-unauthenticated \
-  --service-account $SERVICE_ACCOUNT_EMAIL \
-  --set-env-vars "DB_HOST=$DB_HOST,DB_NAME=$DB_NAME,DB_PORT=5432,SPRING_PROFILES_ACTIVE=cloud,JAVA_OPTS=-Xmx2g -Xms1g" \
-  --set-secrets "DB_PASSWORD=ontoserver-db-password:latest,DB_USER=ontoserver-db-user:latest" \
-  --vpc-egress private-ranges-only \
-  --vpc-connector $VPC_CONNECTOR \
-  --memory 4Gi \
-  --cpu 2 \
-  --max-instances 10 \
-  --min-instances 0 \
-  --timeout 900 \
-  --concurrency 80 \
-  --port 8080
+  --region $REGION
 
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
 
-print_status "Deployment completed successfully!"
+print_status "Image update completed successfully!"
 print_status "Service URL: $SERVICE_URL"
 print_status ""
 print_status "To test the deployment:"
@@ -113,4 +100,7 @@ print_status "To view logs:"
 print_status "gcloud logging read 'resource.type=cloud_run_revision AND resource.labels.service_name=$SERVICE_NAME' --limit=50"
 print_status ""
 print_status "To view the service in the console:"
-print_status "https://console.cloud.google.com/run/detail/$REGION/$SERVICE_NAME/metrics?project=$PROJECT_ID" 
+print_status "https://console.cloud.google.com/run/detail/$REGION/$SERVICE_NAME/metrics?project=$PROJECT_ID"
+print_status ""
+print_warning "NOTE: If you need to change environment variables or other configuration,"
+print_warning "please update the Terraform configuration and run 'terraform apply' instead." 
