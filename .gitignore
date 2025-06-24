@@ -1,0 +1,17 @@
+# Ignore local environment variable scripts
+set-local-env.sh
+
+# Ignore Terraform state
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars
+
+# Ignore service account keys
+*.json
+
+# Ignore Python cache, if any scripts use Python
+__pycache__/
+*.pyc
+
+# Ignore OS files
+.DS_Store

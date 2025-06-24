@@ -43,11 +43,11 @@ print_status "Region: $REGION"
 # Set the project
 gcloud config set project $PROJECT_ID
 
-# Create service account for Terraform (needed for automation)
-print_status "Creating Terraform service account..."
-gcloud iam service-accounts create terraform-sa \
-    --display-name="Terraform Service Account" \
-    --description="Service account for Terraform infrastructure management" || true
+# # Create service account for Terraform (needed for automation)
+# print_status "Creating Terraform service account..."
+# gcloud iam service-accounts create terraform-sa \
+#     --display-name="Terraform Service Account" \
+#     --description="Service account for Terraform infrastructure management" || true
 
 # Create service account for Cloud Run (will be used by the application)
 print_status "Creating Cloud Run service account..."
@@ -55,38 +55,41 @@ gcloud iam service-accounts create ontoserver-run-sa \
     --display-name="Ontoserver Cloud Run Service Account" \
     --description="Service account for Ontoserver Cloud Run service" || true
 
-# Assign roles to Terraform service account
-print_status "Assigning roles to Terraform service account..."
-terraform_sa="serviceAccount:terraform-sa@$PROJECT_ID.iam.gserviceaccount.com"
+# # Assign roles to Terraform service account
+# print_status "Assigning roles to Terraform service account..."
+# terraform_sa="serviceAccount:terraform-sa@$PROJECT_ID.iam.gserviceaccount.com"
 
-# Core Terraform roles
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/run.admin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/cloudsql.admin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/iam.serviceAccountAdmin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/resourcemanager.projectIamAdmin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/storage.admin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/secretmanager.admin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/artifactregistry.admin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/compute.networkAdmin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/compute.securityAdmin"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/servicenetworking.networksAdmin"
+# # Core Terraform roles
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/run.admin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/cloudsql.admin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/iam.serviceAccountAdmin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/resourcemanager.projectIamAdmin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/storage.admin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/secretmanager.admin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/artifactregistry.admin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/compute.networkAdmin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/compute.securityAdmin"
+# gcloud projects add-iam-policy-binding $PROJECT_ID --member="$terraform_sa" --role="roles/servicenetworking.networksAdmin"
 
 # Assign roles to Cloud Run service account
 print_status "Assigning roles to Cloud Run service account..."
 cloudrun_sa="serviceAccount:ontoserver-run-sa@$PROJECT_ID.iam.gserviceaccount.com"
 
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/cloudsql.client"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/secretmanager.secretAccessor"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/logging.logWriter"
-gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/monitoring.metricWriter"
+CONDITION="expression=request.time < timestamp('2040-01-01T00:00:00Z'),title=temporary-access"
 
-# Create and download Terraform service account key
-print_status "Creating Terraform service account key..."
-gcloud iam service-accounts keys create terraform-sa-key.json \
-    --iam-account=terraform-sa@$PROJECT_ID.iam.gserviceaccount.com
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/cloudsql.client" --condition="$CONDITION"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/secretmanager.secretAccessor" --condition="$CONDITION"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/logging.logWriter" --condition="$CONDITION"
+gcloud projects add-iam-policy-binding $PROJECT_ID --member="$cloudrun_sa" --role="roles/monitoring.metricWriter" --condition="$CONDITION"
 
-print_warning "Service account key saved to terraform-sa-key.json"
-print_warning "Keep this file secure and do not commit it to version control!"
+
+# # Create and download Terraform service account key
+# print_status "Creating Terraform service account key..."
+# gcloud iam service-accounts keys create terraform-sa-key.json \
+#     --iam-account=terraform-sa@$PROJECT_ID.iam.gserviceaccount.com
+
+# print_warning "Service account key saved to terraform-sa-key.json"
+# print_warning "Keep this file secure and do not commit it to version control!"
 
 # Create Terraform state bucket (this is the only infrastructure piece that must exist before Terraform)
 print_status "Creating Terraform state bucket..."

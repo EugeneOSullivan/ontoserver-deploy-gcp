@@ -66,10 +66,12 @@ DB_HOST=$(terraform -chdir=../terraform output -raw database_private_ip)
 SERVICE_ACCOUNT_EMAIL=$(terraform -chdir=../terraform output -raw service_account_email)
 VPC_CONNECTOR=$(terraform -chdir=../terraform output -raw vpc_connector_name)
 
-print_status "Using database instance: $DB_INSTANCE"
-print_status "Using database host: $DB_HOST"
-print_status "Using service account: $SERVICE_ACCOUNT_EMAIL"
-print_status "Using VPC connector: $VPC_CONNECTOR"
+print_status "Database Instance: $DB_INSTANCE"
+print_status "Database Name: $DB_NAME"
+print_status "Database User: $DB_USER"
+print_status "Database Host: $DB_HOST"
+print_status "Service Account Email: $SERVICE_ACCOUNT_EMAIL"
+print_status "VPC Connector: $VPC_CONNECTOR"
 
 # Check if the Cloud Run service already exists and get current image
 if gcloud run services describe $SERVICE_NAME --region=$REGION >/dev/null 2>&1; then
@@ -81,21 +83,22 @@ fi
 # Deploy to Cloud Run using the image from Artifact Registry
 print_status "Deploying to Cloud Run..."
 gcloud run deploy $SERVICE_NAME \
-    --image $REGION-docker.pkg.dev/$PROJECT_ID/ontoserver-repo/ontoserver:latest \
-    --platform managed \
-    --region $REGION \
-    --allow-unauthenticated \
-    --service-account $SERVICE_ACCOUNT_EMAIL \
-    --set-env-vars "DB_HOST=$DB_HOST,DB_NAME=$DB_NAME,DB_USER=$DB_USER,DB_PORT=5432,SPRING_PROFILES_ACTIVE=cloud,JAVA_OPTS=-Xmx2g -Xms1g" \
-    --set-secrets "DB_PASSWORD=ontoserver-db-password:latest" \
-    --vpc-connector $VPC_CONNECTOR \
-    --memory 4Gi \
-    --cpu 2 \
-    --max-instances 10 \
-    --min-instances 0 \
-    --timeout 900 \
-    --concurrency 80 \
-    --port 8080
+  --image $REGION-docker.pkg.dev/$PROJECT_ID/ontoserver-repo/ontoserver:latest \
+  --platform managed \
+  --region $REGION \
+  --allow-unauthenticated \
+  --service-account $SERVICE_ACCOUNT_EMAIL \
+  --set-env-vars "DB_HOST=$DB_HOST,DB_NAME=$DB_NAME,DB_PORT=5432,SPRING_PROFILES_ACTIVE=cloud,JAVA_OPTS=-Xmx2g -Xms1g" \
+  --set-secrets "DB_PASSWORD=ontoserver-db-password:latest,DB_USER=ontoserver-db-user:latest" \
+  --vpc-egress private-ranges-only \
+  --vpc-connector $VPC_CONNECTOR \
+  --memory 4Gi \
+  --cpu 2 \
+  --max-instances 10 \
+  --min-instances 0 \
+  --timeout 900 \
+  --concurrency 80 \
+  --port 8080
 
 # Get the service URL
 SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
