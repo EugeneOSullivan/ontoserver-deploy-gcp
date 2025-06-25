@@ -4,7 +4,12 @@ metadata:
   name: ontoserver-config
   namespace: ontoserver
 data:
-  SPRING_PROFILES_ACTIVE: "kubernetes"
+  SPRING_PROFILES_ACTIVE: "ontoserver,kubernetes"
+  ONTOSERVER_FEATURE_FHIR: "true"
+  ONTOSERVER_FEATURE_SYNDICATION: "true"
+  ONTOSERVER_FEATURE_MAPPINGS: "true"
+  ONTOSERVER_SECURITY_OAUTH_BASE_URL: ""
+  ONTOSERVER_INSECURE: "true"
   ONTOSERVER_CLUSTERING_ENABLED: "true"
   JAVA_OPTS: "-Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport"
   DB_PORT: "5432"
