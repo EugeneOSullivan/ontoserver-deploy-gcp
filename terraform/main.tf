@@ -191,17 +191,12 @@ resource "google_cloud_run_service" "ontoserver" {
             memory = "4Gi"
           }
         }
-
         env {
-          name  = "DB_HOST"
-          value = google_sql_database_instance.instance.private_ip_address
+          name  = "SPRING_DATASOURCE_URL"
+          value = "jdbc:postgresql://${google_sql_database_instance.instance.private_ip_address}:5432/${google_sql_database.database.name}?sslmode=disable"
         }
         env {
-          name  = "DB_NAME"
-          value = google_sql_database.database.name
-        }
-        env {
-          name = "DB_USER"
+          name  = "SPRING_DATASOURCE_USERNAME"
           value_from {
             secret_key_ref {
               name = google_secret_manager_secret.db_user.secret_id
@@ -210,7 +205,7 @@ resource "google_cloud_run_service" "ontoserver" {
           }
         }
         env {
-          name = "DB_PASSWORD"
+          name  = "SPRING_DATASOURCE_PASSWORD"
           value_from {
             secret_key_ref {
               name = google_secret_manager_secret.db_password.secret_id
@@ -223,8 +218,12 @@ resource "google_cloud_run_service" "ontoserver" {
           value = "5432"
         }
         env {
+          name  = "ONTOSERVER_CLUSTERING_ENABLED"
+          value = "false"
+        }
+        env {
           name  = "SPRING_PROFILES_ACTIVE"
-          value = "cloud"
+          value = "standalone"
         }
         env {
           name  = "JAVA_OPTS"
