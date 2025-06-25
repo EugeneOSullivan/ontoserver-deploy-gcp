@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ontoserver-config
+  namespace: ontoserver
+data:
+  SPRING_PROFILES_ACTIVE: "kubernetes"
+  ONTOSERVER_CLUSTERING_ENABLED: "true"
+  JAVA_OPTS: "-Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport"
+  # JGroups configuration for Kubernetes
+  JGROUPS_BIND_ADDR: "0.0.0.0"
+  JGROUPS_EXTERNAL_ADDR: "match-interface:eth0"
+  # Kubernetes discovery
+  KUBERNETES_NAMESPACE: "ontoserver"
+  KUBERNETES_LABELS: "app=ontoserver"

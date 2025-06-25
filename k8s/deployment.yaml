@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ontoserver
+  namespace: ontoserver
+  labels:
+    app: ontoserver
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: ontoserver
+  template:
+    metadata:
+      labels:
+        app: ontoserver
+    spec:
+      serviceAccountName: ontoserver
+      containers:
+      - name: ontoserver
+        image: europe-west2-docker.pkg.dev/PROJECT_ID/ontoserver/ontoserver:ctsa-6
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 7800
+          name: jgroups
+        env:
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://POSTGRESQL_IP:5432/ontoserver"
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ontoserver-db-secret
+              key: username
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ontoserver-db-secret
+              key: password
+        envFrom:
+        - configMapRef:
+            name: ontoserver-config
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        readinessProbe:
+          httpGet:
+            path: /fhir/metadata
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /fhir/metadata
+            port: 8080
+          initialDelaySeconds: 120
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        volumeMounts:
+        - name: data
+          mountPath: /opt/ontoserver/data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: ontoserver-data

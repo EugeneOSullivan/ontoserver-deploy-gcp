@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ontoserver-ingress
+  namespace: ontoserver
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "ontoserver-ip"
+    networking.gke.io/managed-certificates: "ontoserver-ssl-cert"
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  rules:
+  - host: YOUR_DOMAIN_HERE  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ontoserver
+            port:
+              number: 80
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: ontoserver-ssl-cert
+  namespace: ontoserver
+spec:
+  domains:
+    - YOUR_DOMAIN_HERE  # Replace with your domain

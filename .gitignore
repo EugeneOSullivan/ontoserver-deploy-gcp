@@ -1,17 +1,50 @@
-# Ignore local environment variable scripts
+# Local environment variable scripts
 set-local-env.sh
 
-# Ignore Terraform state
+# Terraform state and variables
 terraform.tfstate
 terraform.tfstate.*
 *.tfvars
+.terraform/
+.terraform.lock.hcl
 
-# Ignore service account keys
+# Service account keys and credentials
 *.json
+terraform-sa-key.json
+*.key
+*.pem
 
-# Ignore Python cache, if any scripts use Python
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
 
-# Ignore OS files
+# OS files
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Claude development artifacts
+.claude/

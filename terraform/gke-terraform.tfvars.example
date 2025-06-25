@@ -1,0 +1,34 @@
+# GCP Project Configuration
+project_id = "your-project-id"
+region     = "europe-west2"
+
+# GKE Cluster Configuration
+cluster_name     = "ontoserver-cluster"
+gke_num_nodes    = 2
+gke_machine_type = "e2-standard-4"
+
+# Network Configuration
+vpc_name    = "ontoserver-vpc"
+subnet_name = "ontoserver-subnet"
+subnet_cidr = "10.0.0.0/24"
+
+# Database Configuration
+database_instance_name = "ontoserver-db"
+database_name         = "ontoserver"
+database_user         = "ontoserver"
+database_password     = "your-secure-database-password"
+database_version      = "POSTGRES_14"
+database_tier         = "db-standard-2"
+
+# Load Balancer and SSL
+enable_load_balancer = true
+domain_name         = "your-domain.com"  # Optional - leave empty if not using custom domain
+ssl_certificate_name = "ontoserver-ssl-cert"
+
+# Environment and Tags
+environment = "dev"
+tags = {
+  Environment = "dev"
+  Project     = "ontoserver"
+  ManagedBy   = "terraform"
+}

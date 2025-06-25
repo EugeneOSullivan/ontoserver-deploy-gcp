@@ -53,42 +53,55 @@ export QUAY_PASSWORD="your-quay-password"
 
 ## Quick Start
 
-### 1. Set Environment Variables
+### Option 1: Automated Setup (Recommended)
+
+```bash
+# Run the quick setup script
+./scripts/quick-setup.sh
+```
+
+This script will:
+- Check prerequisites
+- Set up your project configuration
+- Guide you through the deployment process
+
+### Option 2: Manual Setup
+
+#### 1. Set Environment Variables
 ```bash
 export PROJECT_ID="your-gcp-project-id"
 export REGION="europe-west2"
 export DATABASE_PASSWORD="your-secure-password"
 ```
 
-### 2. Run Setup Scripts (Manual Admin Steps)
+#### 2. Run Setup Scripts
 ```bash
 cd scripts
 
 # Enable APIs and basic setup
 ./setup-project.sh
 
-# Create service accounts and IAM roles (NOT infrastructure - that's handled by Terraform)
+# Create service accounts and IAM roles
 ./setup-iam.sh
 ```
 
-### 3. Configure Terraform
+#### 3. Configure Terraform
 ```bash
 cd ../terraform
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your actual values
 
-# Set up Terraform backend
-export GOOGLE_APPLICATION_CREDENTIALS="../scripts/terraform-sa-key.json"
+# Initialize Terraform
 terraform init -backend-config="bucket=${PROJECT_ID}-terraform-state"
 ```
 
-### 4. Deploy Infrastructure
+#### 4. Deploy Infrastructure
 ```bash
 terraform plan
 terraform apply
 ```
 
-### 5. Set Up Container Registry and Deploy
+#### 5. Set Up Container Registry and Deploy
 ```bash
 cd ../scripts
 
@@ -105,8 +118,9 @@ cd ../scripts
 ontoserver-gcp-deployment/
 ├── README.md                           # This file
 ├── COMPARISON.md                       # Azure Kubernetes vs GCP Cloud Run comparison
-├── Dockerfile                          # Ontoserver container configuration
+├── CLOUD_SQL_TROUBLESHOOTING.md        # Database connection troubleshooting guide
 ├── scripts/                            # IAM and deployment scripts
+│   ├── quick-setup.sh                  # Automated setup and configuration
 │   ├── setup-project.sh               # Project setup and API enablement
 │   ├── setup-iam.sh                   # Service account and IAM setup
 │   ├── setup-artifact-registry.sh     # Container registry setup
@@ -133,9 +147,6 @@ export DATABASE_PASSWORD="your-secure-password"
 # For Quay.io authentication
 export QUAY_USERNAME="your-quay-username"
 export QUAY_PASSWORD="your-quay-password"
-
-# For Terraform
-export GOOGLE_APPLICATION_CREDENTIALS="path/to/service-account-key.json"
 ```
 
 ### Database Configuration
