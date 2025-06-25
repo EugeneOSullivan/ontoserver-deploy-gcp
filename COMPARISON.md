@@ -1,6 +1,6 @@
-# GCP Cloud Run vs Azure Kubernetes Deployment Comparison
+# GKE vs Azure Kubernetes Deployment Comparison
 
-This document compares the GCP Cloud Run deployment with the official [AEHRC Ontoserver Azure Kubernetes deployment](https://github.com/aehrc/ontoserver-deploy/tree/master/docker).
+This document compares the GKE deployment with the official [AEHRC Ontoserver Azure Kubernetes deployment](https://github.com/aehrc/ontoserver-deploy/tree/master/docker).
 
 ## Architecture Comparison
 
@@ -21,18 +21,18 @@ Internet
 [Azure Database for PostgreSQL]
 ```
 
-### GCP Cloud Run (This Implementation)
+### GKE (This Implementation)
 ```
 Internet
     │
     ▼
-[Cloud Load Balancer] (optional)
+[Cloud Load Balancer]
     │
     ▼
-[Cloud Run Service]
+[GKE Cluster]
     │
     ▼
-[VPC Connector]
+[Ontoserver Pods] (2+ replicas)
     │
     ▼
 [Cloud SQL for PostgreSQL]
@@ -42,23 +42,32 @@ Internet
 
 ### 1. **Container Orchestration**
 
-| Aspect | Azure Kubernetes | GCP Cloud Run |
-|--------|------------------|---------------|
-| **Management** | Manual Kubernetes cluster management | Fully managed serverless platform |
-| **Scaling** | Manual HPA configuration | Automatic scaling to zero |
-| **Cost** | Pay for cluster nodes 24/7 | Pay only for actual requests |
-| **Complexity** | High (Kubernetes expertise required) | Low (managed service) |
+| Aspect | Azure Kubernetes | GKE |
+|--------|------------------|-----|
+| **Management** | Manual Kubernetes cluster | Managed Kubernetes with auto-upgrades |
+| **Scaling** | Manual HPA configuration | Automatic node scaling + HPA |
+| **Cost** | Pay for cluster nodes 24/7 | Pay for cluster nodes 24/7 |
+| **Complexity** | High (Kubernetes expertise) | High (Kubernetes expertise) |
 
 ### 2. **Database Configuration**
 
-| Aspect | Azure Kubernetes | GCP Cloud Run |
-|--------|------------------|---------------|
+| Aspect | Azure Kubernetes | GKE |
+|--------|------------------|-----|
 | **Database** | Azure Database for PostgreSQL | Cloud SQL for PostgreSQL |
-| **Connection** | Direct network access | Private VPC with VPC connector |
+| **Connection** | Direct network access | Private VPC with private IP |
 | **Security** | Network security groups | Private IP with VPC isolation |
 | **Backup** | Azure managed backups | Cloud SQL automated backups |
 
-### 3. **Environment Variables**
+### 3. **Clustering Support**
+
+| Aspect | Azure Kubernetes | GKE |
+|--------|------------------|-----|
+| **JGroups** | Supported | Supported |
+| **Pod Discovery** | Kubernetes DNS | Kubernetes DNS |
+| **Stable IPs** | Pod IPs | Pod IPs |
+| **Clustering** | Manual configuration | Automated with manifests |
+
+### 4. **Environment Variables**
 
 Both deployments use the same core environment variables:
 
@@ -73,59 +82,61 @@ DB_PORT=5432
 # Application Configuration
 SPRING_PROFILES_ACTIVE=cloud
 JAVA_OPTS=-Xmx2g -Xms1g
+ONTOSERVER_CLUSTERING_ENABLED=true
 ```
 
-### 4. **Container Image**
+### 5. **Container Image**
 
 Both use the same official Ontoserver image:
 ```dockerfile
 FROM quay.io/aehrc/ontoserver:ctsa-6
 ```
 
-### 5. **Health Checks**
+### 6. **Health Checks**
 
-| Aspect | Azure Kubernetes | GCP Cloud Run |
-|--------|------------------|---------------|
+| Aspect | Azure Kubernetes | GKE |
+|--------|------------------|-----|
 | **Endpoint** | `/fhir/metadata` | `/fhir/metadata` |
-| **Method** | Kubernetes liveness/readiness probes | Cloud Run health checks |
-| **Configuration** | YAML manifest | Terraform annotations |
+| **Method** | Kubernetes liveness/readiness probes | Kubernetes liveness/readiness probes |
+| **Configuration** | YAML manifest | YAML manifest |
 
-## GCP Cloud Run Advantages
+## GKE Advantages
 
-### 1. **Simplified Operations**
-- **No Kubernetes expertise required**
-- **Automatic scaling and load balancing**
-- **Built-in monitoring and logging**
-- **Zero-downtime deployments**
+### 1. **Managed Kubernetes**
+- **Automatic upgrades** and security patches
+- **Built-in monitoring** and logging
+- **Integrated with GCP services**
+- **Better node management**
 
-### 2. **Cost Optimization**
-- **Scale to zero** when not in use
-- **Pay per request** instead of per node
-- **No cluster management overhead**
+### 2. **Networking**
+- **Private VPC** with isolated networking
+- **Cloud SQL private IP** integration
+- **VPC-native clusters** for better performance
+- **Integrated load balancing**
 
 ### 3. **Security**
-- **Private VPC** with isolated networking
-- **Secret Manager** for sensitive data
-- **IAM integration** for access control
-- **VPC connector** for private database access
+- **Workload Identity** for service accounts
+- **Private clusters** with no public IPs
+- **Integrated IAM** for access control
+- **Secret Manager** integration
 
 ### 4. **Developer Experience**
-- **Faster deployments** (no cluster setup)
-- **Simplified debugging** with Cloud Logging
-- **Terraform infrastructure as code**
-- **Automated CI/CD integration**
+- **Terraform infrastructure** as code
+- **Automated deployment** scripts
+- **Integrated monitoring** and logging
+- **Better debugging tools**
 
 ## Configuration Mapping
 
-### Azure Kubernetes → GCP Cloud Run
+### Azure Kubernetes → GKE
 
-| Azure Kubernetes | GCP Cloud Run Equivalent |
-|------------------|--------------------------|
-| `kubectl apply -f deployment.yaml` | `terraform apply` |
-| `kubectl get pods` | `gcloud run services describe` |
-| `kubectl logs` | `gcloud logging read` |
-| `kubectl port-forward` | `gcloud run services update-traffic` |
-| `kubectl scale` | Automatic scaling (configurable) |
+| Azure Kubernetes | GKE Equivalent |
+|------------------|----------------|
+| `kubectl apply -f deployment.yaml` | `kubectl apply -f k8s/` |
+| `kubectl get pods` | `kubectl get pods -n ontoserver` |
+| `kubectl logs` | `kubectl logs -f deployment/ontoserver -n ontoserver` |
+| `kubectl port-forward` | `kubectl port-forward service/ontoserver 8080:80 -n ontoserver` |
+| `kubectl scale` | `kubectl scale deployment ontoserver --replicas=3 -n ontoserver` |
 
 ### Environment Variables
 
@@ -148,35 +159,28 @@ env:
       key: password
 ```
 
-```hcl
-# GCP Cloud Run (main.tf)
-env {
-  name  = "DB_HOST"
-  value = google_sql_database_instance.instance.private_ip_address
-}
-env {
-  name = "DB_USER"
-  value_from {
-    secret_key_ref {
-      name = google_secret_manager_secret.db_user.secret_id
-      key  = "latest"
-    }
-  }
-}
-env {
-  name = "DB_PASSWORD"
-  value_from {
-    secret_key_ref {
-      name = google_secret_manager_secret.db_password.secret_id
-      key  = "latest"
-    }
-  }
-}
+```yaml
+# GKE (k8s/deployment.yaml)
+env:
+- name: DB_HOST
+  value: "gcp-postgresql-private-ip"
+- name: DB_NAME
+  value: "ontoserver"
+- name: DB_USER
+  valueFrom:
+    secretKeyRef:
+      name: ontoserver-db-secret
+      key: username
+- name: DB_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: ontoserver-db-secret
+      key: password
 ```
 
 ## Migration Path
 
-If you're migrating from Azure Kubernetes to GCP Cloud Run:
+If you're migrating from Azure Kubernetes to GKE:
 
 1. **Export current configuration**:
    ```bash
@@ -188,52 +192,37 @@ If you're migrating from Azure Kubernetes to GCP Cloud Run:
    kubectl get deployment ontoserver -o jsonpath='{.spec.template.spec.containers[0].env}' > env-vars.json
    ```
 
-3. **Update Terraform variables**:
+3. **Update Kubernetes manifests** in `k8s/` directory with values from your Azure deployment
+
+4. **Deploy to GKE**:
    ```bash
-   # Copy values from env-vars.json to terraform.tfvars
+   ./deploy-gke-cluster.sh
+   ./deploy-ontoserver-k8s.sh
    ```
 
-4. **Deploy to GCP**:
-   ```bash
-   terraform apply
-   ```
+## Cost Comparison
 
-## Best Practices Alignment
+### Azure Kubernetes
+- **AKS**: ~$73/month (3 nodes, e2-standard-2)
+- **Azure Database**: ~$25/month (Basic tier)
+- **Load Balancer**: ~$18/month
+- **Total**: ~$116/month
 
-Both deployments follow the same best practices:
+### GKE
+- **GKE**: ~$73/month (3 nodes, e2-standard-2)
+- **Cloud SQL**: ~$25/month (db-f1-micro)
+- **Load Balancer**: ~$18/month
+- **Total**: ~$116/month
 
-### 1. **Security**
-- ✅ Private database access
-- ✅ Secret management
-- ✅ Network isolation
-- ✅ IAM roles and permissions
-
-### 2. **Monitoring**
-- ✅ Health checks
-- ✅ Logging integration
-- ✅ Metrics collection
-- ✅ Alerting capabilities
-
-### 3. **Scalability**
-- ✅ Horizontal scaling
-- ✅ Load balancing
-- ✅ Resource limits
-- ✅ Performance optimization
-
-### 4. **Reliability**
-- ✅ High availability
-- ✅ Automatic failover
-- ✅ Backup strategies
-- ✅ Disaster recovery
+**Note**: Costs are similar, but GKE provides better managed services and integration.
 
 ## Conclusion
 
-The GCP Cloud Run deployment provides the same functionality as the Azure Kubernetes deployment with significant operational advantages:
+GKE provides the same functionality as Azure Kubernetes with:
+- ✅ **Better managed services** and integration
+- ✅ **Improved networking** with private VPC
+- ✅ **Enhanced security** with Workload Identity
+- ✅ **Automated deployment** with Terraform
+- ✅ **Better monitoring** and logging integration
 
-- **Reduced complexity** for developers and operators
-- **Lower costs** through serverless pricing
-- **Faster time to market** with managed services
-- **Better security** with GCP's security-first approach
-- **Simplified maintenance** with automatic updates and scaling
-
-The core Ontoserver application remains unchanged, ensuring compatibility with existing FHIR workflows and integrations. 
+The migration is straightforward since both use standard Kubernetes manifests and the same container image. 

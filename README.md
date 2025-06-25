@@ -1,115 +1,91 @@
-# Ontoserver deployment on Google Cloud Platform
+# Ontoserver GKE Deployment
 
-This example creates a recommended environment in Google Cloud Platform that exposes Ontoserver running on Cloud Run with managed services for optimal performance and cost-effectiveness.
+This repository provides a complete deployment solution for AEHRC Ontoserver on Google Kubernetes Engine (GKE) with proper clustering support.
 
-**This deployment is based on the official [AEHRC Ontoserver Docker deployment patterns](https://github.com/aehrc/ontoserver-deploy/tree/master/docker) and provides a serverless alternative to the Azure Kubernetes deployment.**
+## Why GKE?
 
-## Architecture Overview
+GKE provides the necessary features for Ontoserver clustering:
+- **Stable pod IPs** for cluster member discovery
+- **JGroups clustering** support
+- **Persistent storage** for Ontoserver data
+- **Better resource management** for stateful applications
 
-The GCP deployment uses the following managed services:
-- **Cloud Run** - Serverless container platform for Ontoserver
-- **Cloud SQL for PostgreSQL** - Managed PostgreSQL database with private IP
-- **Cloud Load Balancing** - Global load balancer with SSL termination (optional)
-- **Cloud CDN** - Content delivery network for caching (optional)
-- **Artifact Registry** - Container image registry
-- **Cloud Storage** - For Terraform state and persistent storage
-- **VPC** - Virtual private cloud with proper network segmentation
-- **Secret Manager** - For secure configuration management
-- **VPC Access Connector** - For Cloud Run to access private resources
+## Architecture
 
-## Comparison with Azure Kubernetes
-
-This GCP Cloud Run deployment provides the same functionality as the official Azure Kubernetes deployment with significant advantages:
-
-| Aspect | Azure Kubernetes | GCP Cloud Run |
-|--------|------------------|---------------|
-| **Management** | Manual Kubernetes cluster | Fully managed serverless |
-| **Scaling** | Manual HPA configuration | Automatic scaling to zero |
-| **Cost** | Pay for nodes 24/7 | Pay only for requests |
-| **Complexity** | High (Kubernetes expertise) | Low (managed service) |
-| **Deployment** | `kubectl apply` | `terraform apply` |
-
-See [COMPARISON.md](COMPARISON.md) for detailed comparison.
+```
+Internet
+    │
+    ▼
+[Load Balancer] (optional)
+    │
+    ▼
+[GKE Cluster]
+    │
+    ▼
+[Ontoserver Pods] (2+ replicas)
+    │
+    ▼
+[Cloud SQL PostgreSQL] (private IP)
+```
 
 ## Prerequisites
 
 1. **Google Cloud SDK** installed and configured
 2. **Terraform** (version >= 1.0)
 3. **Docker** for pulling and pushing images
-4. **gcloud** CLI authenticated with appropriate permissions
-5. **Quay.io credentials** - You'll need a Quay.io account to pull the Ontoserver image
-
-## ⚠️ Important: Quay.io Authentication
-
-The Ontoserver image is hosted on Quay.io and requires authentication. You'll need:
-- A Quay.io account
-- Username and password for Quay.io
-
-During setup, you'll be prompted for these credentials or you can set them as environment variables:
-```bash
-export QUAY_USERNAME="your-quay-username"
-export QUAY_PASSWORD="your-quay-password"
-```
+4. **kubectl** for Kubernetes management
+5. **gcloud** CLI authenticated with appropriate permissions
+6. **Quay.io credentials** - You'll need a Quay.io account to pull the Ontoserver image
 
 ## Quick Start
 
-### Option 1: Automated Setup (Recommended)
-
-```bash
-# Run the quick setup script
-./scripts/quick-setup.sh
-```
-
-This script will:
-- Check prerequisites
-- Set up your project configuration
-- Guide you through the deployment process
-
-### Option 2: Manual Setup
-
-#### 1. Set Environment Variables
+### 1. Set Environment Variables
 ```bash
 export PROJECT_ID="your-gcp-project-id"
 export REGION="europe-west2"
 export DATABASE_PASSWORD="your-secure-password"
+export QUAY_USERNAME="your-quay-username"
+export QUAY_PASSWORD="your-quay-password"
 ```
 
-#### 2. Run Setup Scripts
+### 2. Enable APIs and Setup Project
 ```bash
 cd scripts
-
-# Enable APIs and basic setup
 ./setup-project.sh
-
-# Create service accounts and IAM roles
 ./setup-iam.sh
 ```
 
-#### 3. Configure Terraform
+### 3. Configure Terraform
 ```bash
 cd ../terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with your actual values
-
-# Initialize Terraform
-terraform init -backend-config="bucket=${PROJECT_ID}-terraform-state"
+cp gke-terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with your values
 ```
 
-#### 4. Deploy Infrastructure
-```bash
-terraform plan
-terraform apply
-```
-
-#### 5. Set Up Container Registry and Deploy
+### 4. Deploy GKE Cluster
 ```bash
 cd ../scripts
+./deploy-gke-cluster.sh
+```
 
-# Pull from Quay.io and push to Artifact Registry (requires Quay.io credentials)
+### 5. Setup Container Registry
+```bash
 ./setup-artifact-registry.sh
+```
 
-# Deploy Ontoserver to Cloud Run
-./deploy-ontoserver.sh
+### 6. Deploy Ontoserver to Kubernetes
+```bash
+./deploy-ontoserver-k8s.sh
+```
+
+### 7. Access Your Application
+```bash
+# Get the external IP
+kubectl get ingress ontoserver-ingress -n ontoserver
+
+# Or port forward for local access
+kubectl port-forward service/ontoserver 8080:80 -n ontoserver
+# Access at http://localhost:8080/fhir
 ```
 
 ## Directory Structure
@@ -117,22 +93,27 @@ cd ../scripts
 ```
 ontoserver-gcp-deployment/
 ├── README.md                           # This file
-├── COMPARISON.md                       # Azure Kubernetes vs GCP Cloud Run comparison
-├── CLOUD_SQL_TROUBLESHOOTING.md        # Database connection troubleshooting guide
-├── scripts/                            # IAM and deployment scripts
-│   ├── quick-setup.sh                  # Automated setup and configuration
+├── COMPARISON.md                       # Azure Kubernetes vs GKE comparison
+├── scripts/                            # Deployment scripts
 │   ├── setup-project.sh               # Project setup and API enablement
 │   ├── setup-iam.sh                   # Service account and IAM setup
 │   ├── setup-artifact-registry.sh     # Container registry setup
-│   ├── deploy-ontoserver.sh           # Cloud Run deployment script
-│   └── troubleshoot-db-connection.sh  # Database connection troubleshooting
+│   ├── deploy-gke-cluster.sh          # GKE cluster deployment
+│   └── deploy-ontoserver-k8s.sh       # Kubernetes deployment
 ├── terraform/                          # Infrastructure as Code
-│   ├── main.tf                        # Main Terraform configuration
-│   ├── variables.tf                   # Variable definitions
-│   ├── terraform.tfvars.example       # Example variable values
-│   ├── outputs.tf                     # Output values
-└── networking/                        # Network documentation
-    └── README.md                      # Network requirements and setup
+│   ├── gke-main.tf                    # GKE Terraform configuration
+│   ├── gke-variables.tf               # Variable definitions
+│   ├── gke-terraform.tfvars.example   # Example variable values
+│   └── gke-outputs.tf                 # Output values
+└── k8s/                               # Kubernetes manifests
+    ├── namespace.yaml                 # Ontoserver namespace
+    ├── deployment.yaml                # Main application deployment
+    ├── service.yaml                   # ClusterIP and headless services
+    ├── configmap.yaml                 # Environment variables
+    ├── secret.yaml                    # Database credentials template
+    ├── serviceaccount.yaml            # RBAC for pod discovery
+    ├── pvc.yaml                       # Persistent volume for data
+    └── ingress.yaml                   # External access
 ```
 
 ## Configuration
@@ -143,15 +124,13 @@ ontoserver-gcp-deployment/
 export PROJECT_ID="your-gcp-project-id"
 export REGION="europe-west2"
 export DATABASE_PASSWORD="your-secure-password"
-
-# For Quay.io authentication
 export QUAY_USERNAME="your-quay-username"
 export QUAY_PASSWORD="your-quay-password"
 ```
 
 ### Database Configuration
 
-The deployment uses the same database configuration as the Azure Kubernetes deployment:
+The deployment uses PostgreSQL with the same configuration as the Azure Kubernetes deployment:
 
 ```bash
 # Database settings (configured in terraform.tfvars)
@@ -167,88 +146,107 @@ database_tier     = "db-f1-micro"  # Use db-custom-2-4096 for production
 Environment variables match the Azure Kubernetes deployment:
 
 ```bash
-# Application settings (configured in Terraform)
+# Application settings (configured in Kubernetes manifests)
 SPRING_PROFILES_ACTIVE=cloud
 JAVA_OPTS=-Xmx2g -Xms1g
 DB_PORT=5432
+ONTOSERVER_CLUSTERING_ENABLED=true
+```
+
+## Clustering Configuration
+
+The deployment enables JGroups clustering with:
+
+```yaml
+ONTOSERVER_CLUSTERING_ENABLED: "true"
+JGROUPS_BIND_ADDR: "0.0.0.0"
+KUBERNETES_NAMESPACE: "ontoserver"
+KUBERNETES_LABELS: "app=ontoserver"
+```
+
+## Scaling
+
+Scale the deployment:
+
+```bash
+kubectl scale deployment ontoserver --replicas=3 -n ontoserver
+```
+
+## Monitoring and Troubleshooting
+
+### Check Pod Status
+```bash
+kubectl get pods -n ontoserver
+kubectl describe pod <pod-name> -n ontoserver
+```
+
+### View Logs
+```bash
+kubectl logs -f deployment/ontoserver -n ontoserver
+```
+
+### Check Clustering
+```bash
+# Check if pods can discover each other
+kubectl exec -it <pod-name> -n ontoserver -- curl http://ontoserver-headless:7800
+```
+
+### Database Connection
+```bash
+# Test database connectivity
+kubectl exec -it <pod-name> -n ontoserver -- nc -zv <db-ip> 5432
 ```
 
 ## Troubleshooting
 
-### Database Connection Issues
-
-If you're experiencing database connection problems, run the troubleshooting script:
-
-```bash
-./scripts/troubleshoot-db-connection.sh
-```
-
-This script will:
-- Check Terraform infrastructure status
-- Verify Cloud Run service configuration
-- Validate Cloud SQL instance status
-- Check VPC connector configuration
-- Verify service account permissions
-- Test service connectivity
-- Provide actionable recommendations
-
 ### Common Issues
 
-1. **Quay.io Authentication Failed**
-   - Verify your Quay.io credentials
-   - Ensure your account has access to the aehrc/ontoserver repository
+1. **Pod startup failures**: Check logs with `kubectl logs -f deployment/ontoserver -n ontoserver`
+2. **Database connection issues**: Verify Cloud SQL instance is running and accessible
+3. **Clustering not working**: Ensure pods can communicate via headless service
+4. **Image pull errors**: Verify Quay.io credentials and Artifact Registry setup
 
-2. **Terraform Backend Error**
-   - Ensure the bucket exists: `gsutil ls gs://${PROJECT_ID}-terraform-state`
-   - Verify your service account has storage admin permissions
+### Getting Help
 
-3. **Cloud Run Deployment Failed**
-   - Check if the image exists in Artifact Registry
-   - Verify service account permissions
-   - Check Cloud Run logs for application errors
+- Check the [COMPARISON.md](COMPARISON.md) for differences between Azure and GKE deployments
+- Review Terraform outputs for resource information
+- Use `kubectl describe` commands for detailed resource status
 
-4. **Database Connection Failed**
-   - Run the troubleshooting script: `./scripts/troubleshoot-db-connection.sh`
-   - Verify VPC connector is properly configured
-   - Check if private service connection is established
-   - Validate database credentials in Secret Manager
+## Accessing Ontoserver
 
-### Useful Commands
+### Via Load Balancer (Recommended)
+If you configured a domain name:
+```
+https://your-domain.com/fhir
+```
 
+### Via External IP
+Get the external IP:
 ```bash
-# Check Cloud Run service status
-gcloud run services describe ontoserver --region=$REGION
+kubectl get ingress ontoserver-ingress -n ontoserver
+```
 
-# View application logs
-gcloud logging read "resource.type=cloud_run_revision" --limit=50
-
-# Test database connectivity
-gcloud sql connect ontoserver-db --user=ontoserver
-
-# Check Artifact Registry images
-gcloud artifacts docker images list $REGION-docker.pkg.dev/$PROJECT_ID/ontoserver-repo
-
-# Test the service
-curl $(gcloud run services describe ontoserver --region=$REGION --format="value(status.url)")/fhir/metadata
-
-# Troubleshoot database connections
-./scripts/troubleshoot-db-connection.sh
+### Via Port Forward (Development)
+```bash
+kubectl port-forward service/ontoserver 8080:80 -n ontoserver
+# Access at http://localhost:8080/fhir
 ```
 
 ## Cost Optimization
 
-- **Cloud Run**: Pay only for actual usage with automatic scaling to zero
+- **GKE**: Use preemptible nodes for development
 - **Cloud SQL**: Use smallest tier for development (`db-f1-micro`)
-- **VPC Access Connector**: Minimal throughput setting
 - **Load Balancer**: Only enable if custom domain is required
+- **Persistent Storage**: Use appropriate storage class
 
 ## Production Considerations
 
 1. **Database Tier**: Use `db-custom-2-4096` or higher for production
-2. **Backup**: Cloud SQL automated backups are enabled
-3. **Monitoring**: Cloud Monitoring and Logging are configured
-4. **SSL**: Enable load balancer with custom domain for production
-5. **Scaling**: Configure appropriate min/max instances for Cloud Run
+2. **GKE Node Pool**: Use dedicated nodes for production
+3. **Backup**: Cloud SQL automated backups are enabled
+4. **Monitoring**: Cloud Monitoring and Logging are configured
+5. **SSL**: Enable load balancer with custom domain for production
+6. **Scaling**: Configure appropriate min/max replicas
 
 ## Migration from Azure Kubernetes
 
@@ -266,9 +264,10 @@ If you're migrating from the Azure Kubernetes deployment:
 
 3. **Update Terraform variables** with values from your Azure deployment
 
-4. **Deploy to GCP**:
+4. **Deploy to GKE**:
    ```bash
-   terraform apply
+   ./deploy-gke-cluster.sh
+   ./deploy-ontoserver-k8s.sh
    ```
 
 See [COMPARISON.md](COMPARISON.md) for detailed migration guidance.
@@ -277,7 +276,7 @@ See [COMPARISON.md](COMPARISON.md) for detailed migration guidance.
 
 For issues related to:
 - **GCP Infrastructure**: Check Terraform documentation and GCP console
-- **Cloud Run**: Review Cloud Run documentation and logs
+- **GKE**: Review GKE documentation and logs
 - **Ontoserver**: Refer to [AEHRC Ontoserver documentation](https://github.com/aehrc/ontoserver-deploy)
 - **Quay.io Access**: Contact your organization's Quay.io administrator
 

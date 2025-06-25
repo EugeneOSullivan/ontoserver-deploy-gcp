@@ -46,10 +46,10 @@ gcloud config set project $PROJECT_ID
 # Enable required APIs
 print_status "Enabling required GCP APIs..."
 
-# Core APIs for Cloud Run deployment
+# Core APIs for GKE deployment
 gcloud services enable compute.googleapis.com
+gcloud services enable container.googleapis.com
 gcloud services enable sqladmin.googleapis.com
-gcloud services enable run.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
 gcloud services enable artifactregistry.googleapis.com
 gcloud services enable secretmanager.googleapis.com
@@ -58,7 +58,6 @@ gcloud services enable logging.googleapis.com
 
 # Networking APIs
 gcloud services enable servicenetworking.googleapis.com
-gcloud services enable vpcaccess.googleapis.com
 gcloud services enable dns.googleapis.com
 
 # Security APIs
@@ -76,6 +75,4 @@ print_status ""
 print_status "Next steps:"
 print_status "1. Run: ./setup-iam.sh"
 print_status "2. Configure terraform/terraform.tfvars"
-print_status "3. Deploy infrastructure with Terraform"
-print_status "4. Run: ./setup-artifact-registry.sh"
-print_status "5. Run: ./deploy-ontoserver.sh" 
+print_status "3. Run: ./deploy-gke-cluster.sh" 
