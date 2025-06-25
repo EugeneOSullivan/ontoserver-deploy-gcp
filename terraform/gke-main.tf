@@ -135,7 +135,7 @@ resource "google_sql_user" "user" {
 # Create Artifact Registry repository
 resource "google_artifact_registry_repository" "repository" {
   location      = var.region
-  repository_id = "ontoserver"
+  repository_id = "ontoserver-repo"
   description   = "Repository for Ontoserver container images"
   format        = "DOCKER"
 
@@ -195,15 +195,16 @@ resource "google_container_node_pool" "primary_nodes" {
   node_config {
     preemptible  = false
     machine_type = var.gke_machine_type
+    image_type   = "COS_CONTAINERD"
 
-    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
     service_account = google_service_account.gke_sa.email
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
 
     labels = {
-      env = var.project_id
+      env        = var.project_id
+      deployment = timestamp()
     }
 
     tags = ["gke-node", "${var.project_id}-gke"]
@@ -211,6 +212,15 @@ resource "google_container_node_pool" "primary_nodes" {
     metadata = {
       disable-legacy-endpoints = "true"
     }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      node_config[0].resource_labels,
+      node_config[0].labels,
+      node_config[0].metadata,
+      node_config[0].tags,
+    ]
   }
 
   management {
@@ -223,6 +233,8 @@ resource "google_container_node_pool" "primary_nodes" {
     max_unavailable = 0
   }
 }
+
+
 
 # Create service account for GKE nodes
 resource "google_service_account" "gke_sa" {

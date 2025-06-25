@@ -116,11 +116,11 @@ create_db_secret() {
     fi
     
     # Prompt for database password
-    echo -n "Enter database password: "
-    read -s DB_PASSWORD
-    echo
+    # echo -n "Enter database password: "
+    # read -s DB_PASSWORD
+    # echo
     
-    if [ -z "$DB_PASSWORD" ]; then
+    if [ -z "$DATABASE_PASSWORD" ]; then
         print_error "Database password cannot be empty"
         exit 1
     fi
@@ -128,7 +128,7 @@ create_db_secret() {
     # Create secret
     kubectl create secret generic ontoserver-db-secret \
         --from-literal=username=ontoserver \
-        --from-literal=password="$DB_PASSWORD" \
+        --from-literal=password="$DATABASE_PASSWORD" \
         --namespace="$NAMESPACE"
     
     print_success "Database secret created successfully."
