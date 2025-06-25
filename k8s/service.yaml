@@ -1,37 +1,55 @@
+# THIS SERVICE IS FOR TESTING USING LOAD BALANCER
+# FOR PRODUCTION USE SERVICE BELOW REPLACING THE DOMAIN NAME  
+
 apiVersion: v1
 kind: Service
 metadata:
   name: ontoserver
   namespace: ontoserver
-  labels:
-    app: ontoserver
 spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 18080
+      protocol: TCP
+      name: http
   selector:
     app: ontoserver
-  ports:
-  - name: http
-    port: 80
-    targetPort: 8080
-    protocol: TCP
-  - name: jgroups
-    port: 7800
-    targetPort: 7800
-    protocol: TCP
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: ontoserver-headless
-  namespace: ontoserver
-  labels:
-    app: ontoserver
-spec:
-  clusterIP: None
-  selector:
-    app: ontoserver
-  ports:
-  - name: jgroups
-    port: 7800
-    targetPort: 7800
-    protocol: TCP
+
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: ontoserver
+#   namespace: ontoserver
+#   labels:
+#     app: ontoserver
+# spec:
+#   selector:
+#     app: ontoserver
+#   ports:
+#   - name: http
+#     port: 80
+#     targetPort: 8080
+#     protocol: TCP
+#   - name: jgroups
+#     port: 7800
+#     targetPort: 7800
+#     protocol: TCP
+#   type: ClusterIP
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: ontoserver-headless
+#   namespace: ontoserver
+#   labels:
+#     app: ontoserver
+# spec:
+#   clusterIP: None
+#   selector:
+#     app: ontoserver
+#   ports:
+#   - name: jgroups
+#     port: 7800
+#     targetPort: 7800
+#     protocol: TCP

@@ -130,7 +130,7 @@ create_db_secret() {
     # This secret is just for the Kubernetes application to access the database
     kubectl create secret generic ontoserver-db-secret \
         --from-literal=username=ontoserver \
-        --from-literal=password="$DATABASE_PASSWORD" \
+        --from-literal=password="your-secure-password-here" \
         --namespace="$NAMESPACE"
     
     print_success "Database secret created successfully."
@@ -160,7 +160,7 @@ apply_manifests() {
 wait_for_deployment() {
     print_status "Waiting for deployment to be ready..."
     
-    kubectl rollout status deployment/ontoserver -n "$NAMESPACE" --timeout=600s
+    kubectl rollout status deployment/ontoserver -n "$NAMESPACE" --timeout=1200s
     
     print_success "Deployment is ready."
 }
@@ -242,7 +242,20 @@ main() {
     # Apply namespace first
     print_status "Creating namespace..."
     kubectl apply -f "$TEMP_DIR/namespace.yaml"
-    kubectl wait --for=condition=Active namespace/"$NAMESPACE" --timeout=60s
+    echo "[INFO] Waiting for namespace to become available..."
+    for i in {1..24}; do
+    phase=$(kubectl get namespace "$NAMESPACE" -o jsonpath="{.status.phase}" 2>/dev/null)
+    if [[ "$phase" == "Active" ]]; then
+        echo "[SUCCESS] Namespace '$NAMESPACE' is active."
+        break
+    fi
+    sleep 5
+    done
+
+    if [[ "$phase" != "Active" ]]; then
+    echo "[ERROR] Namespace '$NAMESPACE' failed to become active after 60 seconds."
+    exit 1
+    fi
     
     # Create database secret after namespace is ready
     create_db_secret

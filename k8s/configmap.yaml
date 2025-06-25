@@ -7,11 +7,10 @@ data:
   SPRING_PROFILES_ACTIVE: "kubernetes"
   ONTOSERVER_CLUSTERING_ENABLED: "true"
   JAVA_OPTS: "-Xmx3g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+UseContainerSupport"
-  # Database configuration
   DB_PORT: "5432"
-  # JGroups configuration for Kubernetes
   JGROUPS_BIND_ADDR: "0.0.0.0"
   JGROUPS_EXTERNAL_ADDR: "match-interface:eth0"
-  # Kubernetes discovery
   KUBERNETES_NAMESPACE: "ontoserver"
   KUBERNETES_LABELS: "app=ontoserver"
+  SPRING_FHIR_API_BASE_PATH: "/fhir"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "mappings"

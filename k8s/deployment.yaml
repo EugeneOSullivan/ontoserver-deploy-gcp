@@ -23,15 +23,15 @@ spec:
       serviceAccountName: ontoserver
       containers:
       - name: ontoserver
-        image: europe-west2-docker.pkg.dev/PROJECT_ID/ontoserver-repo/ontoserver:latest
+        image: europe-west2-docker.pkg.dev/cdr-discovery/ontoserver-repo/ontoserver:latest
         ports:
-        - containerPort: 8080
+        - containerPort: 18080
           name: http
         - containerPort: 7800
           name: jgroups
         env:
         - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://POSTGRESQL_IP:5432/ontoserver"
+          value: "jdbc:postgresql://10.123.0.3:5432/ontoserver"
         - name: SPRING_DATASOURCE_USERNAME
           valueFrom:
             secretKeyRef:
@@ -55,7 +55,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /fhir/metadata
-            port: 8080
+            port: 18080
           initialDelaySeconds: 60
           periodSeconds: 10
           timeoutSeconds: 5
@@ -63,7 +63,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /fhir/metadata
-            port: 8080
+            port: 18080
           initialDelaySeconds: 120
           periodSeconds: 30
           timeoutSeconds: 10
