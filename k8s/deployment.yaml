@@ -23,7 +23,7 @@ spec:
       serviceAccountName: ontoserver
       containers:
       - name: ontoserver
-        image: europe-west2-docker.pkg.dev/PROJECT_ID/ontoserver/ontoserver:ctsa-6
+        image: europe-west2-docker.pkg.dev/PROJECT_ID/ontoserver-repo/ontoserver:latest
         ports:
         - containerPort: 8080
           name: http

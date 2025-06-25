@@ -70,7 +70,8 @@ get_terraform_outputs() {
     
     cd "$TERRAFORM_DIR"
     
-    PROJECT_ID=$(terraform output -raw cluster_name | cut -d'-' -f1)
+    # Get PROJECT_ID from tfvars file
+    PROJECT_ID=$(grep -E '^project_id\s*=' terraform.tfvars | cut -d'"' -f2)
     DATABASE_IP=$(terraform output -raw database_private_ip)
     ARTIFACT_REGISTRY_URL=$(terraform output -raw artifact_registry_url)
     
@@ -97,6 +98,7 @@ update_manifests() {
     sed -i.bak \
         -e "s/PROJECT_ID/${PROJECT_ID}/g" \
         -e "s/POSTGRESQL_IP/${DATABASE_IP}/g" \
+        -e "s|europe-west2-docker.pkg.dev/PROJECT_ID/ontoserver-repo/ontoserver:latest|${ARTIFACT_REGISTRY_URL}/ontoserver:latest|g" \
         "$TEMP_DIR/deployment.yaml"
     
     # Update PVC to use standard-rwo (ReadWriteOnce for GKE)
@@ -109,23 +111,23 @@ update_manifests() {
 create_db_secret() {
     print_status "Creating database secret..."
     
+    # Check if DATABASE_PASSWORD is set
+    if [ -z "${DATABASE_PASSWORD:-}" ]; then
+        print_error "DATABASE_PASSWORD environment variable is not set"
+        print_error "Please set it with: export DATABASE_PASSWORD='your-database-password'"
+        print_error "This should match the database_password in your terraform.tfvars file"
+        exit 1
+    fi
+    
     # Check if secret exists
     if kubectl get secret ontoserver-db-secret -n "$NAMESPACE" &> /dev/null; then
         print_warning "Database secret already exists. Skipping creation."
         return
     fi
     
-    # Prompt for database password
-    # echo -n "Enter database password: "
-    # read -s DB_PASSWORD
-    # echo
-    
-    if [ -z "$DATABASE_PASSWORD" ]; then
-        print_error "Database password cannot be empty"
-        exit 1
-    fi
-    
-    # Create secret
+    # Create Kubernetes secret for the application
+    # Note: Terraform creates the actual database user/password in Cloud SQL
+    # This secret is just for the Kubernetes application to access the database
     kubectl create secret generic ontoserver-db-secret \
         --from-literal=username=ontoserver \
         --from-literal=password="$DATABASE_PASSWORD" \
@@ -138,8 +140,7 @@ create_db_secret() {
 apply_manifests() {
     print_status "Applying Kubernetes manifests..."
     
-    # Apply manifests in order
-    kubectl apply -f "$TEMP_DIR/namespace.yaml"
+    # Apply manifests in order (namespace already created in main)
     kubectl apply -f "$TEMP_DIR/serviceaccount.yaml"
     kubectl apply -f "$TEMP_DIR/configmap.yaml"
     kubectl apply -f "$TEMP_DIR/pvc.yaml"
@@ -237,7 +238,16 @@ main() {
     check_prerequisites
     get_terraform_outputs
     update_manifests
+    
+    # Apply namespace first
+    print_status "Creating namespace..."
+    kubectl apply -f "$TEMP_DIR/namespace.yaml"
+    kubectl wait --for=condition=Active namespace/"$NAMESPACE" --timeout=60s
+    
+    # Create database secret after namespace is ready
     create_db_secret
+    
+    # Apply remaining manifests
     apply_manifests
     wait_for_deployment
     show_status

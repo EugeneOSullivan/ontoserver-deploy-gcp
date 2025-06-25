@@ -37,16 +37,99 @@ Internet
 5. **gcloud** CLI authenticated with appropriate permissions
 6. **Quay.io credentials** - You'll need a Quay.io account to pull the Ontoserver image
 
+### Installing kubectl
+
+#### macOS
+```bash
+# Using Homebrew
+brew install kubectl
+
+# Or download directly
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/amd64/kubectl"
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl
+```
+
+#### Linux
+```bash
+# Using package manager (Ubuntu/Debian)
+sudo apt-get update && sudo apt-get install -y kubectl
+
+# Or download directly
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl
+```
+
+#### Windows
+```bash
+# Using Chocolatey
+choco install kubernetes-cli
+
+# Or download from https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/
+```
+
+#### Verify Installation
+```bash
+kubectl version --client
+```
+
+### Installing Other Prerequisites
+
+#### Google Cloud SDK
+```bash
+# macOS
+brew install google-cloud-sdk
+
+# Linux
+curl https://sdk.cloud.google.com | bash
+exec -l $SHELL
+
+# Windows
+# Download from https://cloud.google.com/sdk/docs/install
+```
+
+#### Terraform
+```bash
+# macOS
+brew install terraform
+
+# Linux
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs)"
+sudo apt-get update && sudo apt-get install terraform
+
+# Windows
+# Download from https://www.terraform.io/downloads.html
+```
+
+#### Docker
+```bash
+# macOS
+brew install --cask docker
+
+# Linux
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Windows
+# Download from https://docs.docker.com/desktop/windows/install/
+```
+
 ## Quick Start
 
 ### 1. Set Environment Variables
 ```bash
 export PROJECT_ID="your-gcp-project-id"
 export REGION="europe-west2"
-export DATABASE_PASSWORD="your-secure-password"
+export DATABASE_PASSWORD="your-secure-password"  # Must match database_password in terraform.tfvars
 export QUAY_USERNAME="your-quay-username"
 export QUAY_PASSWORD="your-quay-password"
 ```
+
+**Important**: The `DATABASE_PASSWORD` must match the `database_password` value in your `terraform/terraform.tfvars` file.
+
+**Note**: Terraform creates the actual database user and password in Cloud SQL. The Kubernetes deployment script creates a Kubernetes secret that the application uses to connect to the database.
 
 ### 2. Enable APIs and Setup Project
 ```bash
@@ -205,6 +288,44 @@ kubectl exec -it <pod-name> -n ontoserver -- nc -zv <db-ip> 5432
 2. **Database connection issues**: Verify Cloud SQL instance is running and accessible
 3. **Clustering not working**: Ensure pods can communicate via headless service
 4. **Image pull errors**: Verify Quay.io credentials and Artifact Registry setup
+
+### Namespace and Secret Issues
+
+If you encounter "failed to create secret" or namespace errors:
+
+1. **Check environment variables**:
+   ```bash
+   echo "PROJECT_ID: $PROJECT_ID"
+   echo "DATABASE_PASSWORD: ${DATABASE_PASSWORD:+SET}"  # Shows if set without revealing password
+   ```
+
+2. **Verify terraform.tfvars**:
+   ```bash
+   # The DATABASE_PASSWORD must match database_password in terraform/terraform.tfvars
+   grep database_password terraform/terraform.tfvars
+   ```
+
+3. **Verify Terraform has been applied**:
+   ```bash
+   # Check if Cloud SQL database and user were created
+   cd terraform
+   terraform output database_private_ip
+   ```
+
+4. **Manual namespace creation** (if needed):
+   ```bash
+   kubectl create namespace ontoserver
+   ```
+
+5. **Manual secret creation** (if needed):
+   ```bash
+   kubectl create secret generic ontoserver-db-secret \
+     --from-literal=username=ontoserver \
+     --from-literal=password="your-database-password" \
+     --namespace=ontoserver
+   ```
+
+**Note**: Terraform creates the database user and password in Cloud SQL. The Kubernetes secret is just for the application to access the database.
 
 ### Getting Help
 
